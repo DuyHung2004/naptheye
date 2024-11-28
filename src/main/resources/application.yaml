@@ -1,0 +1,6 @@
+server:
+  port: 8083
+telegram:
+  bots:
+    bot-token: "7703412737:AAFMFRMsoShlfQ7fYoJxUhG9bK5efbYQ4i8"
+    bot-username: "napthecaoye_bot"
