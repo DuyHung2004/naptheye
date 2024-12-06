@@ -63,14 +63,13 @@ public class MyService {
     private void configureWebClient() {
         String[] currentProxy = proxyList.get(currentProxyIndex.get());
         HttpClient httpClient = HttpClient.create()
-                // Cấu hình SSL với mặc định (kiểm tra chứng chỉ hợp lệ)
-                .secure(sslContextSpec -> {
-                    try {
-                        sslContextSpec.sslContext(SslContextBuilder.forClient().build()); // Dùng cấu hình SSL mặc định
-                    } catch (SSLException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
+//                .secure(sslContextSpec -> {
+//                    try {
+//                        sslContextSpec.sslContext(SslContextBuilder.forClient().build()); // Dùng cấu hình SSL mặc định
+//                    } catch (SSLException e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                })
                 .proxy(proxy -> proxy.type(ProxyProvider.Proxy.HTTP)
                         .address(new InetSocketAddress(currentProxy[0], Integer.parseInt(currentProxy[1])))
                         .username(currentProxy[2])
@@ -96,16 +95,16 @@ public class MyService {
         requestVerificationToken = tokenInput.attr("value");
     }
 
-    private void switchProxyIfNeeded() {
-        if (requestCount.incrementAndGet() >= REQUEST_LIMIT) {
-            currentProxyIndex.updateAndGet(i -> (i + 1) % proxyList.size());
-            requestCount.set(0);
-            configureWebClient();
+    public void switchProxyIfNeeded() {
+        if (currentProxyIndex.get() < proxyList.size() - 1) {
+            currentProxyIndex.incrementAndGet();
+        } else {
+            currentProxyIndex.set(0); // Quay lại proxy đầu tiên
         }
+        configureWebClient();
     }
 
     public String sendPostRequest(threquest requestObject) throws InterruptedException {
-        switchProxyIfNeeded();
         request= requestObject;
         String value = "Name="+requestObject.getName()+ "&" + "Phone=0" + requestObject.getPhone()+"&ProvinceCode=01"+"&Code=" + requestObject.getCode() ;
         String firstCookie = cookies.get(0).split(";")[0];

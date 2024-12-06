@@ -172,13 +172,16 @@ public class Bot extends TelegramLongPollingBot {
                                 log.info(code);
                                 sendTextMessage(message.getChatId(),"loi khong xac dinh");
                                 check = false;
-                                stopAll = true;
+                                myService.switchProxyIfNeeded();
+                                waitingForCCCD = false;
                                 break;
                         }
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-                    Thread.sleep(2000);
+                    Random random= new Random();
+                    int x= random.nextInt(2000)+2000;
+                    Thread.sleep(x);
                 }
             }
     }
