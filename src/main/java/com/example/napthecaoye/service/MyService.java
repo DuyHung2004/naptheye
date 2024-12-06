@@ -27,6 +27,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,11 +46,11 @@ public class MyService {
     AtomicInteger currentProxyIndex = new AtomicInteger(0);
     private final AtomicInteger requestCount = new AtomicInteger(0);
     private static final int REQUEST_LIMIT = 2;
-    @PostConstruct
-    private void init() {
-        loadProxies("fileproxy.txt");
-        configureWebClient();
-    }
+//    @PostConstruct
+//    private void init() {
+//        loadProxies("fileproxy.txt");
+//        configureWebClient();
+//    }
     private void loadProxies(String filename) {
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String line;
@@ -103,7 +104,30 @@ public class MyService {
         }
         configureWebClient();
     }
+    public void configureWebClient2(String proxy) {
+        try {
+            // Tách proxy thành các phần: host, port, username, password
+            String[] parts = proxy.split(":");
+            String host = parts[0];
+            int port = Integer.parseInt(parts[1]);
 
+            // Cấu hình HttpClient với proxy
+            HttpClient httpClient = HttpClient.create()
+                    .proxy(proxyOptions -> proxyOptions.type(ProxyProvider.Proxy.HTTP)
+                            .address(new InetSocketAddress(host, port))
+                    );
+
+            // Tạo WebClient với HttpClient đã cấu hình
+            webClient = WebClient.builder()
+                    .baseUrl("https://quatangyogurt.thmilk.vn")
+                    .clientConnector(new ReactorClientHttpConnector(httpClient))
+                    .build();
+
+            log.info("WebClient đã được cấu hình với proxy: {}", proxy);
+        } catch (Exception e) {
+            log.error("Lỗi khi cấu hình proxy: {}", e.getMessage(), e);
+        }
+    }
     public String sendPostRequest(threquest requestObject) throws InterruptedException {
         request= requestObject;
         String value = "Name="+requestObject.getName()+ "&" + "Phone=0" + requestObject.getPhone()+"&ProvinceCode=01"+"&Code=" + requestObject.getCode() ;
@@ -131,6 +155,7 @@ public class MyService {
                     .bodyValue(value)
                     .retrieve()
                     .bodyToMono(JsonNode.class)
+                    .timeout(Duration.ofSeconds(10))
                     .map(jsonNode -> {
                         JsonNode Type = jsonNode.get("Prize");
                         return (Type != null) ? Type.asText() : "";
@@ -140,6 +165,9 @@ public class MyService {
             return response;
         } catch (WebClientResponseException e) {
             log.error("WebClientResponseException: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
+        }catch (Exception e) {
+            // Bắt các ngoại lệ khác
+            log.error("An unexpected error occurred: ", e);
         }
 
         return "";

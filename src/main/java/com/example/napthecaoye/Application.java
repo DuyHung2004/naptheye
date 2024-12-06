@@ -35,6 +35,7 @@ public class Application implements CommandLineRunner {
         TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
         try {
             botsApi.registerBot(bot); // Đăng ký bot
+            bot.getproxy();
         } catch (TelegramApiException e) {
             log.error("Lỗi khi đăng ký bot: " + e.getMessage());
         }

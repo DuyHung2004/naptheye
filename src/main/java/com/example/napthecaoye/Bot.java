@@ -3,6 +3,8 @@ package com.example.napthecaoye;
 import com.example.napthecaoye.model.threquest;
 import com.example.napthecaoye.model.thresponse1;
 import com.example.napthecaoye.service.MyService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -11,6 +13,7 @@ import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -21,6 +24,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -46,6 +50,7 @@ public class Bot extends TelegramLongPollingBot {
     private boolean waitingForCCCD = false;
     private String inputSaved;
     private int tmp=0;
+    private final List<String> proxyList = new ArrayList<>();
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
     private final Lock fileLock = new ReentrantLock();
     @Override
@@ -100,6 +105,7 @@ public class Bot extends TelegramLongPollingBot {
     public void naptien(Message message, String input) throws InterruptedException {
             String[] mangsdt = tachsdt(input);
             boolean stopAll = false;
+            int dem=0;
             for (int i=tmp;i<mangsdt.length;i++) {
                 if (stopAll) break;
                 String sdt = mangsdt[i];
@@ -122,7 +128,12 @@ public class Bot extends TelegramLongPollingBot {
                     String name = generateRandomName();
                     threquest request = new threquest(name, macode, sdt);
                     try {
+                        myService.configureWebClient2(proxyList.get(dem));
                         String code = myService.sendPostRequest(request);
+                        dem++;
+                        if(dem>proxyList.size()-1){
+                            dem=0;
+                        }
                         switch (code) {
                             case "3":
                                 sendTextMessage(message.getChatId(),"Đã nạp 10k vào số:"+sdt);
@@ -154,7 +165,7 @@ public class Bot extends TelegramLongPollingBot {
                                     sendTextMessage(6205000032L, message.getChat().getFirstName() + sdt+"Da trung LAPTOP voi ma:"+macode+"voi ten:"+name);
                                 }
                                 saveCodeToFile(macode, "luucode3.txt");
-                                tmp=i;
+                                tmp=0;
                                 waitingForCCCD = false;
                                 check = false;
                                 break;
@@ -164,7 +175,7 @@ public class Bot extends TelegramLongPollingBot {
                                     sendTextMessage(6205000032L, message.getChat().getFirstName() + sdt+"Da trung XE DAP voi ma:"+macode+"voi ten:"+name);
                                 }
                                 saveCodeToFile(macode, "luucode3.txt");
-                                tmp=i;
+                                tmp=0;
                                 waitingForCCCD = false;
                                 check = false;
                                 break;
@@ -172,7 +183,7 @@ public class Bot extends TelegramLongPollingBot {
                                 log.info(code);
                                 sendTextMessage(message.getChatId(),"loi khong xac dinh");
                                 check = false;
-                                myService.switchProxyIfNeeded();
+                                getproxy();
                                 waitingForCCCD = false;
                                 break;
                         }
@@ -180,7 +191,7 @@ public class Bot extends TelegramLongPollingBot {
                         throw new RuntimeException(e);
                     }
                     Random random= new Random();
-                    int x= random.nextInt(2000)+2000;
+                    int x= random.nextInt(500)+500;
                     Thread.sleep(x);
                 }
             }
@@ -236,6 +247,98 @@ public class Bot extends TelegramLongPollingBot {
             log.info("Mã đã được lưu vào file: " + fileName);
         } catch (IOException e) {
             log.error("Lỗi khi lưu vào file: " + e.getMessage());
+        }
+    }
+    public static void saveStringToFile(String randomString, String fileName) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName, true))) {
+            writer.write(randomString);
+            writer.newLine();
+            System.out.println("Chuỗi đã được lưu vào file: " + fileName);
+        } catch (IOException e) {
+            System.err.println("Lỗi khi lưu vào file: " + e.getMessage());
+        }
+    }
+    public void getproxy()  {
+        String fileName = "keyproxy.txt";
+        List<String> keyList = readKeysFromFile(fileName);
+        clearFileContent("fileproxy.txt");
+
+        WebClient webClient2 = WebClient.builder().build();
+        for (int i = 0; i < 3; i++) {
+            while (true) {
+                try {
+                    log.info(keyList.get(i));
+                    String apiUrl = "https://wwproxy.com/api/client/proxy/available?key=" + keyList.get(i) + "&provinceId=-1";
+
+                    // Gửi yêu cầu GET
+                    String proxy = webClient2.get()
+                            .uri(apiUrl)
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .timeout(Duration.ofSeconds(20)) // Đọc response dưới dạng String
+                            .map(Bot::extractProxyFromResponse)  // Trích xuất proxy từ phản hồi
+                            .block(); // Lấy kết quả đồng bộ
+
+                    // Nếu proxy hợp lệ thì lưu vào file và thoát vòng lặp
+                    if (!proxy.equals("null") && !proxy.isEmpty()) {
+                        saveStringToFile(proxy, "fileproxy.txt");
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("Lỗi khi lấy proxy cho key: " + keyList.get(i), e);
+                    try {
+                        Thread.sleep(1000); // Nghỉ 1 giây trước khi thử lại
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+            }
+        }
+
+        loadProxies("fileproxy.txt"); // Tải proxy vào proxyList
+    }
+    private static List<String> readKeysFromFile(String fileName) {
+        List<String> keys = new ArrayList<>(); // Danh sách lưu các key
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                keys.add(line.trim()); // Thêm key vào danh sách (bỏ khoảng trắng dư thừa)
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null; // Trả về null nếu xảy ra lỗi
+        }
+
+        return keys;
+    }
+    public void loadProxies(String filename) {
+        proxyList.clear();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                proxyList.add(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private static void clearFileContent(String fileName) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName, false))) {
+            writer.write(""); // Ghi chuỗi rỗng để xóa nội dung
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private static String extractProxyFromResponse(String response) {
+        try {
+            // Sử dụng Jackson hoặc thư viện tương tự để parse JSON
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode root = objectMapper.readTree(response);
+            return root.path("data").path("proxy").asText(); // Truy cập trường "data.proxy"
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null; // Trả về null nếu có lỗi
         }
     }
 
