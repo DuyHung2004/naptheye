@@ -264,7 +264,7 @@ public class Bot extends TelegramLongPollingBot {
         clearFileContent("fileproxy.txt");
 
         WebClient webClient2 = WebClient.builder().build();
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 5; i++) {
             while (true) {
                 try {
                     log.info(keyList.get(i));
