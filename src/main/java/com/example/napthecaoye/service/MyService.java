@@ -12,6 +12,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
@@ -83,7 +84,11 @@ public class MyService {
     }
     @Autowired
     public MyService(WebClient.Builder webClientBuilder) {
-        webClient = webClientBuilder.baseUrl("https://quatangyogurt.thmilk.vn").build();
+        this.webClient = webClientBuilder
+                .baseUrl("https://quatangyogurt.thmilk.vn")
+                .defaultHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
+                .build();
+
         ResponseEntity<String> response = webClient.get()
                 .uri("/")
                 .retrieve()
@@ -142,13 +147,11 @@ public class MyService {
                     .header("x-requested-with", "XMLHttpRequest")
                     .header("user-agent", "Mozilla/5.0 (Linux; Android 9; SM-G977N Build/PQ3A.190605.003; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36")
                     .header("origin", "https://quatangyogurt.thmilk.vn")
-                    .header("sec-ch-ua-platform","\"Android\"")
-                    .header("sec-ch-ua","\"Chromium\";v=\"130\", \"Google Chrome\";v=\"130\", \"Not?A_Brand\";v=\"99\"")
                     .header("sec-fetch-site", "same-origin")
                     .header("sec-fetch-mode", "cors")
-                    .header("sec-ch-ua-mobile","?1")
                     .header("sec-fetch-dest", "empty")
                     .header("referer","https://quatangyogurt.thmilk.vn/")
+                    //.header("accept-encoding","gzip, deflate")
                     .header("Cookie", firstCookie)
                     .header("accept-language", "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7")
                     .header("content-type", "application/x-www-form-urlencoded; charset=UTF-8")
